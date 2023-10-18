@@ -1,0 +1,46 @@
+:root {
+  --theme-color: #ee843f;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 16px;
+}
+
+main {
+  margin: auto;
+  max-width: 700px;
+  padding: 10px;
+}
+
+input,
+button,
+select {
+  font-size: 16px;
+}
+
+.button {
+  background: #eee;
+  color: darkblue;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.button.primary {
+  background: var(--theme-color);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #eee;
+    background: #121212;
+  }
+  a {
+    color: lightblue;
+  }
+}

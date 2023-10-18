@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPTLingo</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+  </head>
+
+  <body>
+    <main>
+      <h1>All quizzes</h1>
+      <ul id="quiz-catalog">
+        <li>Loading...</li>
+      </ul>
+    </main>
+    <script src="languageMap.js"></script>
+    <script src="utils.js"></script>
+    <script>
+      let quizCatalog = {};
+
+      async function loadQuizToLocalStorage(quizId, baseLanguage, language) {
+        let data = window[`quiz-${quizId}`];
+        if (!data) {
+          data = await fetchQuiz(`${quizId}.json`, baseLanguage, language);
+        }
+        localStorage.setItem("questionSet", JSON.stringify(data));
+        localStorage.setItem(`quiz-${quizId}`, JSON.stringify(data));
+        window.location.href = "./quiz.html";
+      }
+
+      function buildQuizList() {
+        const quizCatalogList = document.getElementById("quiz-catalog");
+
+        if (Object.keys(quizCatalog).length === 0) {
+          quizCatalogList.innerHTML = "<li>No quizzes found</li>";
+          return;
+        }
+
+        quizCatalogList.innerHTML = "";
+
+        Object.keys(quizCatalog).forEach((baseLanguage) => {
+          const baseLanguageItem = document.createElement("li");
+          baseLanguageItem.innerText = languageMap[baseLanguage];
+          const languageList = document.createElement("ul");
+          Object.keys(quizCatalog[baseLanguage]).forEach((language) => {
+            const languageItem = document.createElement("li");
+            languageItem.innerText = languageMap[language];
+            const languageButton = document.createElement("button");
+            languageButton.innerText = "Fetch info for all";
+            languageButton.addEventListener("click", () => {
+              fetchQuizzesByLanguage(baseLanguage, language);
+            });
+            languageItem.appendChild(languageButton);
+            const quizList = document.createElement("ul");
+            Object.values(quizCatalog[baseLanguage][language]).forEach(
+              (quiz) => {
+                const quizButton = document.createElement("button");
+                const quizItem = document.createElement("li");
+                if (quiz.topic) {
+                  quizItem.innerText = `${quiz.topic} - ${
+                    quiz.difficulty || "Any"
+                  }`;
+                  quizButton.innerText = "Start";
+                } else {
+                  quizItem.innerText = quiz.id;
+                  quizButton.innerText = "Fetch and start";
+                }
+                quizButton.addEventListener("click", () => {
+                  loadQuizToLocalStorage(quiz.id, baseLanguage, language);
+                });
+                quizItem.appendChild(quizButton);
+                quizList.appendChild(quizItem);
+              }
+            );
+            languageItem.appendChild(quizList);
+            languageList.appendChild(languageItem);
+          });
+          baseLanguageItem.appendChild(languageList);
+          quizCatalogList.appendChild(baseLanguageItem);
+        });
+      }
+
+      (async () => {
+        const response = await fetch(
+          "https://api.github.com/repos/gptlingo/app/git/trees/main?recursive=1"
+        );
+        const data = await response.json();
+
+        data.tree.forEach((tree) => {
+          if (!tree.path.startsWith("quizzes/")) {
+            return;
+          }
+          if (!tree.path.endsWith(".json")) {
+            return;
+          }
+
+          const baseLanguage = tree.path.split("/")[1];
+          const language = tree.path.split("/")[2];
+
+          quizCatalog[baseLanguage] = quizCatalog[baseLanguage] || {};
+          quizCatalog[baseLanguage][language] =
+            quizCatalog[baseLanguage][language] || {};
+          const quizId = tree.path.split("/")[3].split(".")[0];
+          quizCatalog[baseLanguage][language][quizId] = { id: quizId };
+        });
+        buildQuizList();
+      })();
+
+      async function fetchQuizzesByLanguage(baseLanguage, language) {
+        const response = await fetch(
+          `https://api.github.com/repos/gptlingo/app/contents/quizzes/${baseLanguage}/${language}`
+        );
+        const data = await response.json();
+        await Promise.all(
+          data.map(async (quiz) => {
+            const quizData = await fetchQuiz(quiz.name, baseLanguage, language);
+            // update the quizCatalog
+            quizCatalog[baseLanguage][language][quizData.id] = quizData;
+          })
+        );
+        buildQuizList();
+      }
+    </script>
+    <script src="navigation.js"></script>
+  </body>
+</html>

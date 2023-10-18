@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPTLingo</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+  </head>
+
+  <body>
+    <main>
+      <h1>Onboarding</h1>
+      <form id="language-form">
+        <h2>Select base language</h2>
+        <input id="base-language" type="hidden" name="base-language" />
+        <br />
+        <select id="base-language-select">
+          <option value="">Select base language</option>
+        </select>
+        <h2>Select target language</h2>
+        <input id="target-language" type="hidden" name="target-language" />
+        <br />
+        <select id="target-language-select">
+          <option value="">Select target language</option>
+        </select>
+        <br />
+        <h2>What level are you aiming for?</h2>
+        <select id="quiz-difficulty" name="quiz-difficulty">
+          <option value="">I don't know</option>
+          <option value="A1">Beginner (A1)</option>
+          <option value="A2">Elementary (A2)</option>
+          <option value="B1">Intermediate (B1)</option>
+          <option value="B2">Upper-Intermediate (B2)</option>
+          <option value="C1">Advanced (C1)</option>
+          <option value="C2">Proficient (C2)</option>
+        </select>
+      </form>
+      <br />
+      <nav>
+        <ul
+          style="
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <li><a class="button" href="generate.html">Generate a quiz</a></li>
+          <li><a class="button" href="catalog.html">Browse quizzes</a></li>
+        </ul>
+      </nav>
+    </main>
+    <script src="languageMap.js"></script>
+    <script>
+      const languageForm = document.querySelector("#language-form");
+      const baseLanguageInput = document.querySelector("#base-language");
+      const baseLanguageSelect = document.querySelector(
+        "#base-language-select"
+      );
+      const targetLanguageInput = document.querySelector("#target-language");
+      const targetLanguageSelect = document.querySelector(
+        "#target-language-select"
+      );
+
+      popularLanguageCodes.forEach((code) => {
+        const baseButton = document.createElement("button");
+        baseButton.innerText = languageMap[code];
+        baseButton.addEventListener("click", () => {
+          baseLanguageInput.value = code;
+          baseLanguageSelect.querySelector(
+            `option[value="${code}"]`
+          ).selected = true;
+          languageForm.dispatchEvent(new Event("change"));
+        });
+        baseLanguageInput.after(baseButton);
+
+        const targetButton = document.createElement("button");
+        targetButton.innerText = languageMap[code];
+        targetButton.addEventListener("click", () => {
+          targetLanguageInput.value = code;
+          targetLanguageSelect.querySelector(
+            `option[value="${code}"]`
+          ).selected = true;
+          languageForm.dispatchEvent(new Event("change"));
+        });
+        targetLanguageInput.after(targetButton);
+      });
+
+      Object.keys(languageMap).forEach((code) => {
+        const option = document.createElement("option");
+        option.value = code;
+        option.innerText = languageMap[code];
+        baseLanguageSelect.appendChild(option);
+        targetLanguageSelect.appendChild(option.cloneNode(true));
+      });
+      // pre select en and es
+      baseLanguageSelect.querySelector(`option[value="en"]`).selected = true;
+      targetLanguageSelect.querySelector(`option[value="es"]`).selected = true;
+
+      languageForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+      });
+      // save variables to localStorage on form change
+      languageForm.addEventListener(
+        "change",
+        (event) => {
+          const data = new FormData(languageForm);
+          localStorage.setItem("baseLanguage", data.get("base-language"));
+          localStorage.setItem("targetLanguage", data.get("target-language"));
+          localStorage.setItem("quizDifficulty", data.get("quiz-difficulty"));
+        },
+        false
+      );
+    </script>
+  </body>
+</html>

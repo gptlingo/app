@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPTLingo</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <script src="utils.js"></script>
+    <style>
+      #quiz-form label.correct {
+        color: darkgreen;
+      }
+
+      #quiz-form label.incorrect {
+        color: darkred;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <h1 id="quiz-topic">Quiz</h1>
+      <form id="quiz-form">
+        <fieldset id="quiz-fieldset">
+          <legend id="question-legend">Question</legend>
+        </fieldset>
+        <br />
+        <p id="explanation"></p>
+        <br />
+        <input type="submit" value="Submit" />
+      </form>
+      <br />
+      <p id="question-indicator"></p>
+      <button id="prev" onclick="prevQuestion();">Previous</button>
+      <button id="next" onclick="nextQuestion();">Next</button>
+      <input
+        type="checkbox"
+        id="auto-submit-toggle"
+        name="auto-submit-toggle"
+      />
+      Auto-submit on select
+      <button
+        id="upload-answers-button"
+        type="button"
+        onClick="uploadAnswers();"
+        disabled
+      >
+        Upload answers
+      </button>
+      <button type="button" onclick="clearLocalStorage();">
+        Clear localStorage
+      </button>
+    </main>
+    <script>
+      let currentQuestionIndex = 0;
+      let quizAnswers = {};
+      let autoSubmit = false;
+
+      let questionSet = localStorage.getItem("questionSet")
+        ? JSON.parse(localStorage.getItem("questionSet"))
+        : null;
+      const topic = questionSet?.topic;
+      const quizTopic = document.querySelector("#quiz-topic");
+      quizTopic.innerText = topic;
+
+      let questions = questionSet?.questions;
+
+      const fieldset = document.querySelector("#quiz-fieldset");
+      const explanation = document.querySelector("#explanation");
+      const questionIndicator = document.querySelector("#question-indicator");
+      function loadQuestion(index) {
+        const question = questions[index];
+        fieldset.innerHTML = "";
+        explanation.innerHTML = "";
+        const legend = document.createElement("legend");
+        legend.textContent = question.question;
+        fieldset.appendChild(legend);
+        question.options.forEach((option, index) => {
+          const label = document.createElement("label");
+          const radio = document.createElement("input");
+
+          radio.type = "radio";
+          radio.name = "question";
+          radio.value = option;
+
+          label.appendChild(radio);
+          label.appendChild(document.createTextNode(option));
+
+          // If the user has already answered the question, add the appropriate "correct" and "incorrect" classes
+          if (quizAnswers[currentQuestionIndex]) {
+            if (option === question.correctAnswer) {
+              label.classList.add("correct");
+            } else if (option === quizAnswers[currentQuestionIndex]) {
+              label.classList.add("incorrect");
+            }
+          }
+
+          // If auto-submit is enabled, submit the form when the label is clicked
+          if (autoSubmit) {
+            label.addEventListener("click", () => {
+              quizForm.dispatchEvent(new Event("submit"));
+            });
+          }
+
+          fieldset.appendChild(label);
+        });
+
+        questionIndicator.textContent = `Question ${index + 1} of ${
+          questions.length
+        }`;
+      }
+      // This runs when the page loads
+      if (questions?.length > 0) {
+        loadQuestion(currentQuestionIndex);
+      }
+
+      function nextQuestion() {
+        if (currentQuestionIndex < questions.length - 1) {
+          currentQuestionIndex++;
+          loadQuestion(currentQuestionIndex);
+        }
+      }
+      function prevQuestion() {
+        if (currentQuestionIndex > 0) {
+          currentQuestionIndex--;
+          loadQuestion(currentQuestionIndex);
+        }
+      }
+      // attach event listeners to arrow keys
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") {
+          prevQuestion();
+        } else if (event.key === "ArrowRight") {
+          nextQuestion();
+        }
+      });
+
+      const autoSubmitToggle = document.querySelector("#auto-submit-toggle");
+      autoSubmitToggle.addEventListener("change", () => {
+        autoSubmit = autoSubmitToggle.checked;
+        loadQuestion(currentQuestionIndex); // Reload the current question to apply the new setting
+      });
+
+      const quizForm = document.querySelector("#quiz-form");
+      const uploadAnswersButton = document.querySelector(
+        "#upload-answers-button"
+      );
+      quizForm.addEventListener(
+        "submit",
+        (event) => {
+          event.preventDefault();
+          const data = new FormData(quizForm);
+          let userAnswer = "";
+          for (const entry of data) {
+            if (entry[0] === "question") {
+              userAnswer = entry[1];
+            }
+          }
+          quizAnswers[currentQuestionIndex] = userAnswer;
+          const question = questions[currentQuestionIndex];
+          if (question.explanation) {
+            explanation.innerText = `Explanation: ${question.explanation}`;
+          }
+
+          // Clear outdated classes and add labels to the correct and incorrect answers
+          const labels = Array.from(fieldset.getElementsByTagName("label"));
+          labels.forEach((label) => {
+            // Clear any existing classes
+            label.className = "";
+            const radio = label.querySelector('input[type="radio"]');
+            if (radio.value === question.correctAnswer) {
+              label.classList.add("correct");
+            }
+            if (
+              radio.value === userAnswer &&
+              userAnswer !== question.correctAnswer
+            ) {
+              label.classList.add("incorrect");
+            }
+          });
+
+          if (currentQuestionIndex === questions.length - 1) {
+            const user = localStorage.getItem("user");
+            if (!user) {
+              return;
+            }
+            const userData = JSON.parse(user);
+            userData.quizzes = userData.quizzes || {};
+            userData.quizzes[questionSet.baseLanguage] =
+              userData.quizzes[questionSet.baseLanguage] || {};
+            userData.quizzes[questionSet.baseLanguage][questionSet.language] =
+              userData.quizzes[questionSet.baseLanguage][
+                questionSet.language
+              ] || {};
+            const numberOfCorrectAnswers = Object.values(quizAnswers).filter(
+              (answer, index) => {
+                return answer === questions[index].correctAnswer;
+              }
+            ).length;
+
+            userData.quizzes[questionSet.baseLanguage][questionSet.language][
+              questionSet.id
+            ] = {
+              id: questionSet.id,
+              answers: quizAnswers,
+              numberOfCorrectAnswers,
+            };
+
+            localStorage.setItem("user", JSON.stringify(userData, null, 2));
+            uploadAnswersButton.disabled = false;
+          }
+        },
+        false
+      );
+
+      async function streamLoadQuestionSet(stream) {
+        // read the event stream using ReadableStream
+        const reader = stream.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let result = [];
+        let done = false;
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          const decodedValue = decoder.decode(value);
+          try {
+            const jsonChunks = decodedValue.split("data: ").filter(Boolean);
+            jsonChunks.forEach((chunk) => {
+              const json = JSON.parse(chunk);
+              result.push(json.choices[0].delta.content);
+              try {
+                let tempQuestionSet = JSON.parse(result.join("") + '"}]}');
+                questions = tempQuestionSet.questions;
+                if (!questions || questions?.length == 1) {
+                  loadQuestion(currentQuestionIndex);
+                }
+                questionIndicator.textContent = `Question ${
+                  currentQuestionIndex + 1
+                } of ${questions.length}`;
+              } catch (error) {
+                //console.log(error);
+              }
+            });
+          } catch (error) {
+            console.log(error);
+          }
+          done = readerDone;
+        }
+        questionSet = JSON.parse(result.join(""));
+        questionSet.topic = quizGenerationData.topic;
+        questionSet.difficulty = quizGenerationData.difficulty;
+        questionSet.language = quizGenerationData.language;
+        questionSet.baseLanguage = quizGenerationData.baseLanguage;
+        questions = questionSet.questions;
+        localStorage.setItem(
+          "questionSet",
+          JSON.stringify(questionSet, null, 2)
+        );
+        uploadQuestionSet();
+      }
+      // this code runs when the page loads
+      // check the localstorage for quizGenerationData
+      let quizGenerationData = localStorage.getItem("quizGenerationData")
+        ? JSON.parse(localStorage.getItem("quizGenerationData"))
+        : null;
+      if (quizGenerationData) {
+        quizTopic.innerText = quizGenerationData.topic;
+        if (quizGenerationData.apiKey) {
+          getGPTQuestions(quizGenerationData).then((response) => {
+            void streamLoadQuestionSet(response);
+          });
+        } else {
+          fetch("https://rate-limited-worker.gptlingo.workers.dev", {
+            method: "POST",
+            body: JSON.stringify(quizGenerationData),
+          }).then((response) => {
+            void streamLoadQuestionSet(response);
+          });
+        }
+        // remove the quizGenerationData from localstorage
+        localStorage.removeItem("quizGenerationData");
+      }
+
+      function uploadQuestionSet() {
+        fetch("https://quizzes.gptlingo.workers.dev", {
+          method: "POST",
+          body: JSON.stringify({
+            quiz: questionSet,
+          }),
+        });
+      }
+
+      function uploadAnswers() {
+        const user = localStorage.getItem("user");
+        if (!user) {
+          return;
+        }
+        fetch("https://users.gptlingo.workers.dev", {
+          method: "POST",
+          body: JSON.stringify({
+            user: JSON.parse(user),
+          }),
+        });
+      }
+
+      function clearLocalStorage() {
+        localStorage.clear();
+      }
+    </script>
+    <script src="navigation.js"></script>
+  </body>
+</html>

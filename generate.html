@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPTLingo</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <script src="utils.js"></script>
+  </head>
+
+  <body>
+    <main>
+      <h1>Create a Quiz</h1>
+      <form id="quiz-generator">
+        <label for="base-language">Base Language:</label>
+        <select id="base-language" name="base-language" required></select>
+        <br />
+        <label for="quiz-language">Target Language:</label>
+        <select id="quiz-language" name="quiz-language" required></select>
+        <br />
+        <label for="quiz-topic">Topic:</label>
+        <input
+          type="text"
+          id="quiz-topic"
+          name="quiz-topic"
+          required
+          placeholder="Animals"
+          maxlength="40"
+        />
+        <br />
+        <label for="quiz-instructions">Additional instructions:</label><br />
+        <textarea
+          id="quiz-instructions"
+          name="quiz-instructions"
+          placeholder="Include questions about the behavior of the animals."
+          cols="35"
+          maxlength="150"
+        ></textarea>
+        <br />
+        <label for="quiz-difficulty">Difficulty</label>
+        <select id="quiz-difficulty" name="quiz-difficulty">
+          <option value="">Any</option>
+          <option value="A1">Beginner (A1)</option>
+          <option value="A2">Elementary (A2)</option>
+          <option value="B1">Intermediate (B1)</option>
+          <option value="B2">Upper-Intermediate (B2)</option>
+          <option value="C1">Advanced (C1)</option>
+          <option value="C2">Proficient (C2)</option>
+        </select>
+        <br />
+        <button type="submit">Generate</button>
+        <p>The AI will be prompted with the following:</p>
+        <p id="prompt"></p>
+        <br />
+        <input
+          type="text"
+          id="personal-api-key"
+          name="personal-api-key"
+          placeholder="(optional) Use your own OpenAI API key"
+        />
+      </form>
+    </main>
+    <script src="languageMap.js"></script>
+    <script>
+      const baseLanguageSelect = document.querySelector("#base-language");
+      const quizLanguageSelect = document.querySelector("#quiz-language");
+
+      Object.keys(languageMap).forEach((code) => {
+        const option = document.createElement("option");
+        option.value = code;
+        option.innerText = languageMap[code];
+        baseLanguageSelect.appendChild(option);
+        quizLanguageSelect.appendChild(option.cloneNode(true));
+      });
+
+      const difficultySelect = document.querySelector("#quiz-difficulty");
+
+      // prefill the form with localStorage data
+      const baseLanguage = localStorage.getItem("baseLanguage");
+      if (baseLanguage) {
+        baseLanguageSelect.querySelector(
+          `option[value="${baseLanguage}"]`
+        ).selected = true;
+      }
+      const quizLanguage = localStorage.getItem("targetLanguage");
+      if (quizLanguage) {
+        quizLanguageSelect.querySelector(
+          `option[value="${quizLanguage}"]`
+        ).selected = true;
+      }
+      const difficulty = localStorage.getItem("quizDifficulty");
+      if (difficulty) {
+        difficultySelect.querySelector(
+          `option[value="${difficulty}"]`
+        ).selected = true;
+      }
+
+      const quizGeneratorForm = document.querySelector("#quiz-generator");
+      quizGeneratorForm.addEventListener(
+        "submit",
+        (event) => {
+          event.preventDefault();
+          const data = new FormData(quizGeneratorForm);
+          // Save the data to localStorage and redirect to the quiz page
+          const quizData = {
+            baseLanguage: data.get("base-language"),
+            readableBaseLanguage: languageMap[data.get("base-language")],
+            language: data.get("quiz-language"),
+            readableLanguage: languageMap[data.get("quiz-language")],
+            topic: data.get("quiz-topic"),
+            instructions: data.get("quiz-instructions"),
+            difficulty: data.get("quiz-difficulty"),
+            apiKey: data.get("personal-api-key"),
+          };
+          localStorage.setItem("quizGenerationData", JSON.stringify(quizData));
+          window.location.href = "./quiz.html";
+        },
+        false
+      );
+
+      // when the form changes, update the prompt
+      quizGeneratorForm.addEventListener(
+        "change",
+        (event) => {
+          event.preventDefault();
+          const data = new FormData(quizGeneratorForm);
+          const quizData = {
+            baseLanguage: data.get("base-language"),
+            language: data.get("quiz-language"),
+            topic: data.get("quiz-topic"),
+            instructions: data.get("quiz-instructions"),
+            difficulty: data.get("quiz-difficulty"),
+            apiKey: data.get("personal-api-key"),
+          };
+          const prompt = getQuizGenerationPrompt(quizData);
+          document.querySelector("#prompt").textContent = prompt;
+        },
+        false
+      );
+    </script>
+    <script src="navigation.js"></script>
+  </body>
+</html>

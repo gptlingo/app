@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPTLingo</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+  </head>
+
+  <body>
+    <main>
+      <h1>User</h1>
+      <p>Hello, <span id="user-name"></span>!</p>
+      <p>Here you can see your progress.</p>
+      <ul id="progress-list">
+        <li>Loading...</li>
+      </ul>
+    </main>
+    <script src="languageMap.js"></script>
+    <script src="utils.js"></script>
+    <script>
+      async function loadQuizToLocalStorage(quizId, baseLanguage, language) {
+        const quizData = await fetchQuiz(
+          `${quizId}.json`,
+          baseLanguage,
+          language
+        );
+        localStorage.setItem("questionSet", JSON.stringify(quizData));
+        localStorage.setItem(`quiz-${quizId}`, JSON.stringify(quizData));
+        window.location.href = "./quiz.html";
+      }
+
+      // Check if user is logged in
+      const user = localStorage.getItem("user");
+      if (!user) {
+        window.location.href = "./account.html";
+      }
+      const userData = JSON.parse(user);
+
+      const userNamePlaceholder = document.getElementById("user-name");
+      userNamePlaceholder.innerText = userData.id;
+
+      const progressList = document.getElementById("progress-list");
+      if (userData.quizzes) {
+        progressList.innerHTML = "";
+        Object.keys(userData.quizzes).forEach((baseLanguage) => {
+          const readableBaseLanguage = languageMap[baseLanguage];
+          const baseLanguageItem = document.createElement("li");
+          baseLanguageItem.innerText = `Base language: ${readableBaseLanguage}`;
+
+          const baseLanguageList = document.createElement("ul");
+          Object.keys(userData.quizzes[baseLanguage]).forEach((language) => {
+            const languageItem = document.createElement("li");
+            const totalCorrectAnswers = Object.values(
+              userData.quizzes[baseLanguage][language]
+            ).reduce((acc, quiz) => {
+              return acc + quiz.numberOfCorrectAnswers;
+            }, 0);
+            const totalAnswers = Object.values(
+              userData.quizzes[baseLanguage][language]
+            ).reduce((acc, quiz) => {
+              return acc + Object.keys(quiz.answers).length;
+            }, 0);
+            languageItem.innerText = `${languageMap[language]}: ${totalCorrectAnswers}/${totalAnswers}`;
+            const quizList = document.createElement("ul");
+            Object.values(userData.quizzes[baseLanguage][language]).forEach(
+              (quiz) => {
+                const quizItem = document.createElement("li");
+                const quizTopic = document.createElement("p");
+                quizTopic.innerText = quiz.id;
+                const correctAnswers = document.createElement("p");
+                correctAnswers.innerText = `Correct answers: ${
+                  quiz.numberOfCorrectAnswers
+                }/${Object.keys(quiz.answers).length}`;
+                const quizButton = document.createElement("button");
+                quizButton.innerText = "Re-take quiz";
+                quizButton.addEventListener("click", () => {
+                  loadQuizToLocalStorage(quiz.id, baseLanguage, language);
+                });
+                quizItem.appendChild(quizTopic);
+                quizItem.appendChild(correctAnswers);
+                quizItem.appendChild(quizButton);
+
+                quizList.appendChild(quizItem);
+              }
+            );
+            languageItem.appendChild(quizList);
+            baseLanguageList.appendChild(languageItem);
+          });
+          baseLanguageItem.appendChild(baseLanguageList);
+          progressList.appendChild(baseLanguageItem);
+        });
+      } else {
+        progressList.innerHTML = "<li>No progress yet</li>";
+      }
+    </script>
+    <script src="navigation.js"></script>
+  </body>
+</html>
